@@ -208,8 +208,17 @@ namespace Graphics3D {
     public class Camera : Object3D {
 
         #region Member Variables
+
+        /// <summary>
+        /// A list of all objects that will be rendered when Render() is called.
+        /// </summary>
         public List<IRenderable> renderQueue = new List<IRenderable>();
+
         private int _width = 0;
+
+        /// <summary>
+        /// Width of the image.
+        /// </summary>
         public int width {
             get { return _width; }
             set {
@@ -217,7 +226,12 @@ namespace Graphics3D {
                 RenderSizeChanged();
             }
         }
+
         private int _height = 0;
+
+        /// <summary>
+        /// Height of the image.
+        /// </summary>
         public int height {
             get { return _height; }
             set {
@@ -226,16 +240,51 @@ namespace Graphics3D {
             }
         }
 
-        public float gizmoLength = 50, focalLength = 1;
-        public bool renderGizmos = true, orthographic = false;
+        /// <summary>
+        /// Length of the local axis gizmos (Red, Green and Blue lines)
+        /// </summary>
+        public float gizmoLength = 50;
+
+        /// <summary>
+        /// Focal length of this camera. This will only affect Perspective rendering
+        /// </summary>
+        public float focalLength = 1;
+
+        /// <summary>
+        /// Should the camera render local axis gizmos?
+        /// </summary>
+        public bool renderGizmos = true;
+
+        /// <summary>
+        /// Should the camera render in perspective or orthographic?
+        /// </summary>
+        public bool orthographic = false;
+
+        /// <summary>
+        /// How should objects be rendered? Only wireframe is supported currently.
+        /// </summary>
         public RenderMode renderMode = RenderMode.Wireframe;
 
+        /// <summary>
+        /// Background color of the image
+        /// </summary>
         public Color worldColor;
-        public Pen wireFramePen = Pens.Black, selected = Pens.Orange;
 
-        public Matrix4x4 cameraMatrix;
+        /// <summary>
+        /// The color which will be used to draw wireframes.
+        /// </summary>
+        public Pen wireFramePen = Pens.Black;
 
+        /// <summary>
+        /// A Matrix4x4 which represents the inverse of this camera's rotation. It is used mainly by render calls.
+        /// </summary>
+        private Matrix4x4 cameraMatrix;
+
+        /// <summary>
+        /// Points that are used by the render calls.
+        /// </summary>
         private Vector3 point1 = Vector3.zero, point2 = Vector3.zero, up = Vector3.zero, right = Vector3.zero, forward = Vector3.zero, origin = Vector3.zero;
+
         private Graphics g;
         private Bitmap b;
         #endregion
@@ -254,6 +303,10 @@ namespace Graphics3D {
         #endregion
 
         #region Member Methods
+
+        /// <summary>
+        /// Return an Image using the camera's current transform, and render settings
+        /// </summary>
         public Image Render() {
 
             g.Clear(worldColor);
@@ -263,7 +316,7 @@ namespace Graphics3D {
                     case RenderMode.Wireframe:
                         return DrawAllObjectsWireframeOrtho();
                     case RenderMode.Solid:
-                        return null;
+                        throw new NotImplementedException();
                     default:
                         return null;
                 }
@@ -272,7 +325,7 @@ namespace Graphics3D {
                     case RenderMode.Wireframe:
                         return DrawAllObjectsWireframePerspective();
                     case RenderMode.Solid:
-                        return null;
+                        throw new NotImplementedException();
                     default:
                         return null;
                 }
@@ -280,6 +333,9 @@ namespace Graphics3D {
 
         }
 
+        /// <summary>
+        /// This should only be called by Render(). It truncates the z axis of all points in a scene to create an image to return to Render();
+        /// </summary>
         private Image DrawAllObjectsWireframeOrtho() {
             if (renderQueue.Count > 0) {
                 foreach (IRenderable obj in renderQueue) {
@@ -314,6 +370,10 @@ namespace Graphics3D {
             return b;
         }
 
+        /// <summary>
+        /// This should only be called by Render(). It uses a projection algorithm to create an image to return to Render();
+        /// </summary>
+        /// <remarks>If one vertex of an edge is inside or behind the camera, the whole edge will not be rendered. I'm working on this.</remarks>
         private Image DrawAllObjectsWireframePerspective() {
             if (renderQueue.Count > 0) {
                 foreach (IRenderable obj in renderQueue) {
@@ -397,6 +457,9 @@ namespace Graphics3D {
         }
         */
 
+        /// <summary>
+        /// Updates private variables when the render size is changed.
+        /// </summary>
         private void RenderSizeChanged() {
             b = new Bitmap(width, height);
             g = Graphics.FromImage(b);
@@ -409,7 +472,7 @@ namespace Graphics3D {
         }
 
         public override Tuple<Vector3, Vector3>[] GetEdges() {
-            throw new NotImplementedException();
+            throw new NotImplementedException("I haven't implemented a frustrum primitave yet. Don't add a camera to the renderQueue");
         }
 
         protected override void TransformUpdate() {
