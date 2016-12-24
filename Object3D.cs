@@ -128,12 +128,12 @@ namespace Graphics3D {
         /// <summary>
         /// The vertices of this object as they relate to the object's origin as specified by the transform
         /// </summary>
-        private Vector3[] vertices;
+        public Vector3[] vertices;
 
         /// <summary>
         /// The vertices of this object with respect to the object's origin as it should appear with no scale or rotation
         /// </summary>
-        private Vector3[] unitVertices;
+        public Vector3[] unitVertices;
 
         /// <summary>
         /// Is this object selected?

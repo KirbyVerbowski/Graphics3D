@@ -42,6 +42,7 @@ namespace Graphics3D {
                                                     ((Vector3.unitVectorX + Vector3.unitVectorY - Vector3.unitVectorZ)),
                                                         ((Vector3.unitVectorX + Vector3.unitVectorY + Vector3.unitVectorZ))};
 
+
             TransformUpdate();
         }
         #endregion
@@ -156,6 +157,7 @@ namespace Graphics3D {
                                                                              (-2*Vector3.unitVectorX - Vector3.unitVectorZ),
                                                                                  (-2*Vector3.unitVectorX),
                                                                                         (-2*Vector3.unitVectorX + Vector3.unitVectorZ) };
+
 
             TransformUpdate();
         }
