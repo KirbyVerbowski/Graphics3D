@@ -27,17 +27,12 @@ namespace Graphics3D {
     /// </summary>
     public class Cube : Object3D {
 
-        #region Member Variables
+        #region Constructors
 
-        /// <summary>
-        /// An array of every vertex in this object in relation to its center as specified by its transform
-        /// </summary>
-        public Vector3[] vertices = new Vector3[8];
+        public Cube(Vector3 position, Vector3 rotation, Vector3 scale) : base(position, rotation, scale) {
 
-        /// <summary>
-        /// An array of vertices without any scale/rotation applied. Used only in creation.
-        /// </summary>
-        private Vector3[] unitVertices = new Vector3[8] {
+            vertices = new Vector3[8];
+            unitVertices = new Vector3[8] {
                             ((-Vector3.unitVectorX - Vector3.unitVectorY - Vector3.unitVectorZ)),
                                 ((Vector3.unitVectorX - Vector3.unitVectorY - Vector3.unitVectorZ)),
                                     ((-Vector3.unitVectorX + Vector3.unitVectorY - Vector3.unitVectorZ)),
@@ -46,11 +41,7 @@ namespace Graphics3D {
                                                 ((-Vector3.unitVectorX + Vector3.unitVectorY + Vector3.unitVectorZ)),
                                                     ((Vector3.unitVectorX + Vector3.unitVectorY - Vector3.unitVectorZ)),
                                                         ((Vector3.unitVectorX + Vector3.unitVectorY + Vector3.unitVectorZ))};
-        #endregion
 
-        #region Constructors
-
-        public Cube(Vector3 position, Vector3 rotation, Vector3 scale) : base(position, rotation, scale) {
             TransformUpdate();
         }
         #endregion
@@ -97,21 +88,17 @@ namespace Graphics3D {
     /// A primitive Tetrahedron object
     /// </summary>
     public class Tetrahedron : Object3D {
-        /*
-            See Cube class for comments
-        */
 
-        #region Member Variables
-        public Vector3[] vertices = new Vector3[4];
-        private Vector3[] unitVertices = new Vector3[4] {
+        #region Constructors
+        public Tetrahedron(Vector3 position, Vector3 rotation, Vector3 scale) : base(position, rotation, scale) {
+
+            vertices = new Vector3[4];
+            unitVertices = new Vector3[4] {
                             ((-Vector3.unitVectorX +    Vector3.unitVectorZ - Vector3.unitVectorY)),
                                 ((Vector3.unitVectorX + Vector3.unitVectorZ - Vector3.unitVectorY)),
                                     ((-Vector3.unitVectorZ - Vector3.unitVectorY)),
                                         (2*(Vector3.unitVectorY))};
-        #endregion
 
-        #region Constructors
-        public Tetrahedron(Vector3 position, Vector3 rotation, Vector3 scale) : base(position, rotation, scale) {
             TransformUpdate();
         }
         #endregion
@@ -149,12 +136,10 @@ namespace Graphics3D {
     /// </summary>
     public class GridFloor : Object3D {
 
-        /*
-            See Cube class for comments
-        */
+        public GridFloor(Vector3 position, Vector3 rotation, Vector3 scale) : base(position, rotation, scale) {
 
-        public Vector3[] vertices = new Vector3[16];
-        private Vector3[] unitVertices = new Vector3[16] {
+            vertices = new Vector3[16];
+            unitVertices = new Vector3[16] {
                             (-2 * Vector3.unitVectorX + 2*Vector3.unitVectorZ),
                                 (-Vector3.unitVectorX + 2*Vector3.unitVectorZ),
                                     (2*Vector3.unitVectorZ),
@@ -172,7 +157,6 @@ namespace Graphics3D {
                                                                                  (-2*Vector3.unitVectorX),
                                                                                         (-2*Vector3.unitVectorX + Vector3.unitVectorZ) };
 
-        public GridFloor(Vector3 position, Vector3 rotation, Vector3 scale) : base(position, rotation, scale) {
             TransformUpdate();
         }
 
