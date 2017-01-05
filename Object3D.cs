@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 /*
     Object3D.cs
@@ -13,6 +14,7 @@
 namespace Graphics3D {
 
     public delegate void TransformUpdateDelegate();
+    public delegate Tuple<Vector3, Vector3>[] GetEdgeDelegate();
 
     /// <summary>
     /// An interface which allows 3D objects to be rendered by the camera.
@@ -116,7 +118,7 @@ namespace Graphics3D {
     /// <summary>
     /// The base class for every object that exists in 3D space.
     /// </summary>
-    public abstract class Object3D : IRenderable {
+    public class Object3D : IRenderable {
 
         #region Member Variables
 
@@ -139,16 +141,56 @@ namespace Graphics3D {
         /// Is this object selected?
         /// </summary>
         public bool selected = false;
+
+
+        public GetEdgeDelegate getEdgeDelegate;
         #endregion
 
         #region Member Methods
-        protected abstract void TransformUpdate();
-        public abstract Tuple<Vector3, Vector3>[] GetEdges();
-        public abstract bool Selected();
+        protected virtual void TransformUpdate() {
+            if(vertices == null) {
+                return;
+            }
+            for (int i = 0; i < vertices.Length; i++) {
+                vertices[i] = Vector4.ToVector3(Matrix4x4.CombinedRotation(transform.rotation) * Vector3.ToVector4(new Vector3(unitVertices[i].x * transform.scale.x, unitVertices[i].y * transform.scale.y, unitVertices[i].z * transform.scale.z)));
+                vertices[i] += this.transform.position;
+            }
+        }
+        public Tuple<Vector3, Vector3>[] GetEdges() {
+            return getEdgeDelegate();
+        }
+        public virtual bool Selected() {
+            return false;
+        }
+
+        private Tuple<Vector3, Vector3>[] DefaultGetEdge() {
+
+            List<Tuple<Vector3, Vector3>> temp = new List<Tuple<Vector3, Vector3>>();
+
+            if (vertices == null) {
+                temp.Add(Tuple.Create<Vector3,Vector3>(Vector3.zero,Vector3.zero));
+                return temp.ToArray();
+            }
+            else {
+                for (int i = 0; i < vertices.Length; i++) {
+                    for (int j = 0; j < vertices.Length; j++) {
+                        if (i == j) {
+                            continue;
+                        }
+                        else {
+                            temp.Add(new Tuple<Vector3, Vector3>(vertices[i], vertices[j]));
+                        }
+                    }
+                }
+                return temp.ToArray();
+                
+            }
+        }
         #endregion
 
         #region Constructors
         public Object3D(Vector3 position, Vector3 rotation, Vector3 scale) {
+            getEdgeDelegate = new GetEdgeDelegate(DefaultGetEdge);
             this.transform = new Transform(position, rotation, scale, TransformUpdate);
         }
         #endregion

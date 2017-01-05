@@ -30,7 +30,7 @@ namespace Graphics3D {
         #region Constructors
 
         public Cube(Vector3 position, Vector3 rotation, Vector3 scale) : base(position, rotation, scale) {
-
+            getEdgeDelegate = new GetEdgeDelegate(GetEdges);
             vertices = new Vector3[8];
             unitVertices = new Vector3[8] {
                             ((-Vector3.unitVectorX - Vector3.unitVectorY - Vector3.unitVectorZ)),
@@ -49,22 +49,11 @@ namespace Graphics3D {
 
         #region Member Methods
 
-        /// <summary>
-        /// Handles how the vertices should be moved when this object's transform changes
-        /// </summary>
-        protected override void TransformUpdate() {
-            for (int i = 0; i < unitVertices.Length; i++) {
-                vertices[i] -= this.transform.position;
-                vertices[i] = Vector4.ToVector3(Matrix4x4.CombinedRotation(transform.rotation) * Vector3.ToVector4(new Vector3(unitVertices[i].x * transform.scale.x, unitVertices[i].y * transform.scale.y, unitVertices[i].z * transform.scale.z)));
-                vertices[i] += this.transform.position;
-            }
-        }
-
         public override bool Selected() {
             return selected;
         }
 
-        public override Tuple<Vector3, Vector3>[] GetEdges() {
+        private Tuple<Vector3, Vector3>[] GetEdges() {
             Tuple<Vector3, Vector3>[] tuples =
             {
                 Tuple.Create(vertices[0], vertices[1]),
@@ -92,6 +81,7 @@ namespace Graphics3D {
 
         #region Constructors
         public Tetrahedron(Vector3 position, Vector3 rotation, Vector3 scale) : base(position, rotation, scale) {
+            getEdgeDelegate = new GetEdgeDelegate(GetEdges);
 
             vertices = new Vector3[4];
             unitVertices = new Vector3[4] {
@@ -105,19 +95,12 @@ namespace Graphics3D {
         #endregion
 
         #region Member Methods
-        protected override void TransformUpdate() {
-            for (int i = 0; i < unitVertices.Length; i++) {
-                vertices[i] -= this.transform.position;
-                vertices[i] = Vector4.ToVector3(Matrix4x4.CombinedRotation(transform.rotation) * Vector3.ToVector4(new Vector3(unitVertices[i].x * transform.scale.x, unitVertices[i].y * transform.scale.y, unitVertices[i].z * transform.scale.z)));
-                vertices[i] += this.transform.position;
-            }
-        }
 
         public override bool Selected() {
             return selected;
         }
 
-        public override Tuple<Vector3, Vector3>[] GetEdges() {
+        private Tuple<Vector3, Vector3>[] GetEdges() {
             Tuple<Vector3, Vector3>[] tuples =
             {
                 Tuple.Create(vertices[0], vertices[1]),
@@ -138,6 +121,7 @@ namespace Graphics3D {
     public class GridFloor : Object3D {
 
         public GridFloor(Vector3 position, Vector3 rotation, Vector3 scale) : base(position, rotation, scale) {
+            getEdgeDelegate = new GetEdgeDelegate(GetEdges);
 
             vertices = new Vector3[16];
             unitVertices = new Vector3[16] {
@@ -162,19 +146,11 @@ namespace Graphics3D {
             TransformUpdate();
         }
 
-        protected override void TransformUpdate() {
-            for (int i = 0; i < unitVertices.Length; i++) {
-                vertices[i] -= this.transform.position;
-                vertices[i] = Vector4.ToVector3(Matrix4x4.CombinedRotation(transform.rotation) * Vector3.ToVector4(new Vector3(unitVertices[i].x * transform.scale.x, unitVertices[i].y * transform.scale.y, unitVertices[i].z * transform.scale.z)));
-                vertices[i] += this.transform.position;
-            }
-        }
-
         public override bool Selected() {
             return selected;
         }
 
-        public override Tuple<Vector3, Vector3>[] GetEdges() {
+        private Tuple<Vector3, Vector3>[] GetEdges() {
             Tuple<Vector3, Vector3>[] tuples =
             {
                 Tuple.Create(vertices[1], vertices[11]),
@@ -457,10 +433,6 @@ namespace Graphics3D {
             return base.selected;
         }
 
-        public override Tuple<Vector3, Vector3>[] GetEdges() {
-            throw new NotImplementedException("I haven't implemented a frustrum primitave yet. Don't add a camera to the renderQueue");
-        }
-
         protected override void TransformUpdate() {
             cameraMatrix = Matrix4x4.Inverse(Matrix4x4.CombinedRotation(transform.rotation));
         }
@@ -630,10 +602,6 @@ namespace Graphics3D {
 
         public override bool Selected() {
             throw new NotImplementedException("This is a pseudo-object and should not be selected");
-        }
-
-        public override Tuple<Vector3, Vector3>[] GetEdges() {
-            throw new NotImplementedException("This is a pseudo-object and should not be rendered");
         }
 
         protected override void TransformUpdate() {
