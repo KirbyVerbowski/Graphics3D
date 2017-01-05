@@ -296,6 +296,14 @@ namespace Graphics3D {
             }
             private set { }
         }
+
+        /// <summary>
+        /// A read only vector of magnitude 1
+        /// </summary>
+        public static Vector3 one {
+            get { return new Vector3(1, 1, 1); }
+            private set { }
+        }
         #endregion
 
         #region Constructors
@@ -1515,6 +1523,28 @@ namespace Graphics3D {
             return (m1.GetRow(0) != m2.GetRow(0) || m1.GetRow(1) != m2.GetRow(1) || m1.GetRow(2) != m2.GetRow(2) || m1.GetRow(3) != m2.GetRow(3));
         }
         #endregion 
+    }
+
+    public struct Mesh {
+
+        public Vector3[] vertices;
+        public int[][] faces;
+        public int[][] edges;
+        public string name;
+
+        public Mesh(Vector3[] vertices, int[][] faces, int[][] edges) {
+            this.vertices = vertices;
+            this.faces = faces;
+            this.edges = edges;
+            this.name = "";
+        }
+        public Mesh(Vector3[] vertices) {
+            this.vertices = vertices;
+            this.faces = new int[1][];
+            this.edges = new int[1][];
+            this.name = "";
+        }
+
     }
 
 }
