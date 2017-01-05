@@ -22,13 +22,4 @@ mainCamera.renderQueue.Add(myCube); //step 3
 System.Drawing.Image myFirstScene = mainCamera.Render(); //step 4
 ```
 
-To create a renderable object, have the class inherit from Object3D and make sure it overrides all of the abstract methods declared by Object3D. It's constructor should call the base constructor with appropriate transform information and call the TransformUpdate method so it is oriented properly upon creation.
-
-example code:
-```C#
-public Cube(Vector3 position, Vector3 rotation, Vector3 scale) : base(position, rotation, scale) {
-            TransformUpdate();
-}
-```
-
 This project borrows a lot of names from the [UnityEngine](https://unity3d.com/) library however it is not otherwise related. This is my original code and was created as a learning experience for myself and shared for others.
