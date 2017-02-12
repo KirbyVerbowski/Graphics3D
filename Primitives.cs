@@ -255,6 +255,7 @@ namespace Graphics3D {
         public Camera(float focalLength, Vector3 position, Vector3 rotation, Color worldColor, int width, int height) : base(position, rotation, new Vector3(1, 1, 1)) {
             this.focalLength = focalLength;
             this.transform.position = position;
+            this.transform.rotation = rotation;
             this.worldColor = worldColor;
 
             cameraMatrix = Matrix4x4.Inverse(Matrix4x4.CombinedRotation(transform.rotation * MathConst.Deg2Rad));
@@ -303,21 +304,25 @@ namespace Graphics3D {
                 foreach (IRenderable obj in renderQueue) {
                     foreach (Tuple<Vector3, Vector3> edge in obj.GetEdges()) {
 
-                        point1 = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4(edge.Item1 - transform.position));
-                        point2 = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4(edge.Item2 - transform.position));
+
+
+                        point1 = (cameraMatrix * (edge.Item1 - transform.position).ToVector4()).ToVector3();
+                        point2 = (cameraMatrix * (edge.Item2 - transform.position).ToVector4()).ToVector3();
+
+                        point1 = new Vector3(Vector3.DotProduct(edge.Item1, transform.right), Vector3.DotProduct(edge.Item1, transform.up));
+                        point2 = new Vector3(Vector3.DotProduct(edge.Item2, transform.right), Vector3.DotProduct(edge.Item2, transform.up));
 
                         if (Math.Abs(point1.x) > width || Math.Abs(point1.y) > height || Math.Abs(point2.x) > width || Math.Abs(point2.y) > height) {
                             continue;
                         }
-
-                        g.DrawLine(wireFramePen, point1.x - transform.position.x, point1.y - transform.position.y, point2.x - transform.position.x, point2.y - transform.position.y);
+                        g.DrawLine(wireFramePen, point1.x, point1.y, point2.x, point2.y);
                     }
 
                     if (renderGizmos) {
-                        origin = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4(obj.transform.position - transform.position));
-                        up = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4((obj.transform.up * gizmoLength + obj.transform.position) - transform.position));
-                        right = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4((obj.transform.right * gizmoLength + obj.transform.position) - transform.position));
-                        forward = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4((obj.transform.forward * gizmoLength + obj.transform.position) - transform.position));
+                        origin = (cameraMatrix * (obj.transform.position - transform.position).ToVector4()).ToVector3();
+                        up = (cameraMatrix * ((obj.transform.up * gizmoLength + obj.transform.position) - transform.position).ToVector4()).ToVector3();
+                        right = (cameraMatrix * ((obj.transform.right * gizmoLength + obj.transform.position) - transform.position).ToVector4()).ToVector3();
+                        forward = (cameraMatrix * ((obj.transform.forward * gizmoLength + obj.transform.position) - transform.position).ToVector4()).ToVector3();
 
                         if (Math.Abs(origin.x) > width || Math.Abs(origin.y) > height || Math.Abs(up.x) > width || Math.Abs(up.y) > height || Math.Abs(right.x) > width || Math.Abs(right.y) > height || Math.Abs(forward.x) > width || Math.Abs(forward.y) > height) {
                             continue;
@@ -337,12 +342,13 @@ namespace Graphics3D {
         /// </summary>
         /// <remarks>If one vertex of an edge is inside or behind the camera, the whole edge will not be rendered. I'm working on this.</remarks>
         private Image DrawAllObjectsWireframePerspective() {
+            Vector3 point1 = Vector3.zero, point2 = Vector3.zero, origin = transform.forward * focalLength - transform.right * width - transform.up * height;
             if (renderQueue.Count > 0) {
                 foreach (IRenderable obj in renderQueue) {
                     foreach (Tuple<Vector3, Vector3> edge in obj.GetEdges()) {
 
-                        point1 = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4(edge.Item1 - transform.position));
-                        point2 = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4(edge.Item2 - transform.position));
+                        point1 = (cameraMatrix * (edge.Item1 - transform.position).ToVector4()).ToVector3();
+                        point2 = (cameraMatrix * (edge.Item2 - transform.position).ToVector4()).ToVector3();
 
                         if (point1.z < 0.1E-6f || point2.z < 0.1E-6f) {
                             continue;
@@ -360,10 +366,10 @@ namespace Graphics3D {
                     }
                     if (renderGizmos) {
 
-                        origin = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4(obj.transform.position - transform.position));
-                        up = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4((obj.transform.up * gizmoLength + obj.transform.position) - transform.position));
-                        right = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4((obj.transform.right * gizmoLength + obj.transform.position) - transform.position));
-                        forward = Vector4.ToVector3(cameraMatrix * Vector3.ToVector4((obj.transform.forward * gizmoLength + obj.transform.position) - transform.position));
+                        origin = (cameraMatrix * (obj.transform.position - transform.position).ToVector4()).ToVector3();
+                        up = (cameraMatrix * ((obj.transform.up * gizmoLength + obj.transform.position) - transform.position).ToVector4()).ToVector3();
+                        right = (cameraMatrix * ((obj.transform.right * gizmoLength + obj.transform.position) - transform.position).ToVector4()).ToVector3();
+                        forward = (cameraMatrix * ((obj.transform.forward * gizmoLength + obj.transform.position) - transform.position).ToVector4()).ToVector3();
 
                         if (up.z < 0.1E-6f || right.z < 0.1E-6f || forward.z < 0.1E-6f || origin.z < 0.1E-6f) {
                             continue;
@@ -435,177 +441,6 @@ namespace Graphics3D {
 
         protected override void TransformUpdate() {
             cameraMatrix = Matrix4x4.Inverse(Matrix4x4.CombinedRotation(transform.rotation));
-        }
-        #endregion
-    }
-
-    /// <summary>
-    /// Incomplete. Do not use.
-    /// </summary>
-    public class ViewPort : Object3D {
-        #region Member Variables
-        Vector2 screenCenter = Vector2.zero;
-        public List<IRenderable> renderQueue = new List<IRenderable>();
-        private int _width = 0;
-        public int width {
-            get { return _width; }
-            set {
-                _width = value;
-                RenderSizeChanged();
-            }
-        }
-        private int _height = 0;
-        public int height {
-            get { return _height; }
-            set {
-                _height = value;
-                RenderSizeChanged();
-            }
-        }
-
-        public float gizmoLength = 50, focalLength = 1;
-        public bool renderGizmos = true, orthographic = false;
-        public RenderMode renderMode = RenderMode.Wireframe;
-
-        public Color worldColor;
-        public new Pen wireFramePen = Pens.Black, selected = Pens.Orange;
-
-        private Graphics g;
-        private Bitmap b;
-        #endregion
-
-        #region Constructors
-        public ViewPort(float focalLength, Vector3 position, Vector3 rotation, Color worldColor, int width, int height) : base(position, rotation, new Vector3(1, 1, 1)) {
-            this.focalLength = focalLength;
-            this.transform.position = position;
-            this.worldColor = worldColor;
-
-            //So callback is only called once
-            this._width = width;
-            this.height = height;
-        }
-        #endregion
-
-        #region Member Methods
-        public Image Render() {
-
-            g.Clear(worldColor);
-
-            if (orthographic) {
-                switch (renderMode) {
-                    case RenderMode.Wireframe:
-                        return DrawAllObjectsWireframeOrtho();
-                    case RenderMode.Solid:
-                        return null;
-                    default:
-                        return null;
-                }
-            } else {
-                switch (renderMode) {
-                    case RenderMode.Wireframe:
-                        return DrawAllObjectsWireframePerspective();
-                    case RenderMode.Solid:
-                        return null;
-                    default:
-                        return null;
-                }
-            }
-
-        }
-
-        private Image DrawAllObjectsWireframeOrtho() {
-            Vector3 point1, point2;
-            if (renderQueue.Count > 0) {
-                foreach (IRenderable obj in renderQueue) {
-                    g.DrawLine(Pens.LawnGreen, obj.transform.position.x - transform.position.x + screenCenter.x, obj.transform.position.y - transform.position.y + screenCenter.y, (obj.transform.up.x * gizmoLength - transform.position.x + screenCenter.x) + obj.transform.position.x, (obj.transform.up.y * gizmoLength - transform.position.y + screenCenter.y) + obj.transform.position.y);
-                    g.DrawLine(Pens.Blue, obj.transform.position.x - transform.position.x + screenCenter.x, obj.transform.position.y - transform.position.y + screenCenter.y, (obj.transform.forward.x * gizmoLength - transform.position.x + screenCenter.x) + obj.transform.position.x, (obj.transform.forward.y * gizmoLength - transform.position.y + screenCenter.y) + obj.transform.position.y);
-                    g.DrawLine(Pens.Red, obj.transform.position.x - transform.position.x + screenCenter.x, obj.transform.position.y - transform.position.y + screenCenter.y, (obj.transform.right.x * gizmoLength - transform.position.x + screenCenter.x) + obj.transform.position.x, (obj.transform.right.y * gizmoLength - transform.position.y + screenCenter.y) + obj.transform.position.y);
-                    foreach (Tuple<Vector3, Vector3> edge in obj.GetEdges()) {
-
-                        point1 = edge.Item1;
-                        point1 -= transform.position;
-
-                        point1 = Vector4.ToVector3(Matrix4x4.Inverse(Matrix4x4.CombinedRotation(transform.rotation * MathConst.Deg2Rad)) * Vector3.ToVector4(point1));
-
-                        point2 = edge.Item2;
-                        point2 -= transform.position;
-
-                        point2 = Vector4.ToVector3(Matrix4x4.Inverse(Matrix4x4.CombinedRotation(transform.rotation * MathConst.Deg2Rad)) * Vector3.ToVector4(point2));
-
-
-                        g.DrawLine(wireFramePen, point1.x - transform.position.x + screenCenter.x, point1.y - transform.position.y + screenCenter.y, point2.x - transform.position.x + screenCenter.x, point2.y - transform.position.y + screenCenter.y);
-                    }
-                }
-            }
-            return b;
-        }
-
-        private Image DrawAllObjectsWireframePerspective() {
-            Vector3 point1, point2, gizmoUp = Vector3.zero, gizmoRight = Vector3.zero, gizmoIn = Vector3.zero, objOrigin = Vector3.zero;
-            if (renderQueue.Count > 0) {
-
-                foreach (IRenderable obj in renderQueue) {
-                    foreach (Tuple<Vector3, Vector3> edge in obj.GetEdges()) {
-
-                        point1 = edge.Item1;
-                        point1 -= transform.position;
-
-                        point1 = Vector4.ToVector3(Matrix4x4.Inverse(Matrix4x4.CombinedRotation(transform.rotation * MathConst.Deg2Rad)) * Vector3.ToVector4(point1));
-
-                        point2 = edge.Item2;
-                        point2 -= transform.position;
-
-                        point2 = Vector4.ToVector3(Matrix4x4.Inverse(Matrix4x4.CombinedRotation(transform.rotation * MathConst.Deg2Rad)) * Vector3.ToVector4(point2));
-
-                        if (point1.z < 0.1E-6f && point2.z < 0.1E-6f) {
-                            continue;
-                        } else if (point1.z < 0.1E-6f) {
-                            // temp = (point1 - point2).magnitude + point1.z;
-                            // point1 = point1.normalized * temp;
-                            continue;
-                        } else if (point2.z < 0.1E-6f) {
-                            //  temp = (point2 - point1).magnitude + point2.z;
-                            // point2 = point2.normalized * temp;
-                            continue;
-                        } else {
-
-                            point1 = point1.normalized * (new Vector3((focalLength * point1.x) / point1.z, (focalLength * point1.y) / point1.z, focalLength)).magnitude;
-                            point2 = point2.normalized * (new Vector3((focalLength * point2.x) / point2.z, (focalLength * point2.y) / point2.z, focalLength)).magnitude;
-
-
-                        }
-
-                        g.DrawLine(wireFramePen, point1.x + screenCenter.x, point1.y + screenCenter.y, point2.x + screenCenter.x, point2.y + screenCenter.y);
-
-                    }
-                    if (renderGizmos) {
-                        //objOrigin = obj.transform.position - transform.position;
-
-                        // gizmoUp = Vector4.ToVector3(Matrix4x4.Inverse(Matrix4x4.CombinedRotation(transform.rotation * MathConst.Deg2Rad)) * Vector3.ToVector4(objOrigin + (obj.transform.up * gizmoLength)));
-                        // gizmoRight = Vector4.ToVector3(Matrix4x4.Inverse(Matrix4x4.CombinedRotation(transform.rotation * MathConst.Deg2Rad)) * Vector3.ToVector4(objOrigin + (obj.transform.right * gizmoLength)));
-                        //  gizmoIn = Vector4.ToVector3(Matrix4x4.Inverse(Matrix4x4.CombinedRotation(transform.rotation * MathConst.Deg2Rad)) * Vector3.ToVector4(objOrigin + (obj.transform.forward * gizmoLength)));
-
-                    }
-                }
-            }
-            return b;
-        }
-
-        private void RenderSizeChanged() {
-            b = new Bitmap(width, height);
-            g = Graphics.FromImage(b);
-            g.ScaleTransform(1, -1);
-            g.TranslateTransform(0, -height);
-
-            screenCenter = new Vector2(width / 2, height / 2);
-        }
-
-        public override bool Selected() {
-            throw new NotImplementedException("This is a pseudo-object and should not be selected");
-        }
-
-        protected override void TransformUpdate() {
-
         }
         #endregion
     }
