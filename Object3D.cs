@@ -14,7 +14,7 @@ using System.Linq;
 */
 
 
-namespace Graphics3D {
+namespace HomeCompyGraphics3D {
 
     public delegate void TransformUpdateDelegate();
     public delegate Tuple<Vector3, Vector3>[] GetEdgeDelegate();

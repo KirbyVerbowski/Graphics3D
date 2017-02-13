@@ -18,7 +18,7 @@ using System.Drawing;
     For example; a camera of width = 1300, height = 400 should have focal length around 300.
 */
 
-namespace Graphics3D {
+namespace HomeCompyGraphics3D {
 
     public enum RenderMode { Wireframe, Solid }
 

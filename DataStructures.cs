@@ -8,7 +8,7 @@ using System.Text;
     A few structs which allow transformations in 3D space
 */
 
-namespace Graphics3D {
+namespace HomeCompyGraphics3D {
 
     /// <summary>
     /// Holds useful math constants
@@ -1360,7 +1360,7 @@ namespace Graphics3D {
 
         public Vector4 GetRow(int row) {
             if (row >= 0 && row <= 3) {
-                return new Vector4(contents[row][0], contents[row][1], contents[row][2], contents[row][3]);
+                return new Vector4(contents[0][row], contents[1][row], contents[2][row], contents[3][row]);
             } else {
                 throw new IndexOutOfRangeException();
             }
@@ -1619,14 +1619,14 @@ namespace Graphics3D {
 
         #region Operator Overloads
         public static Matrix4x4 operator *(Matrix4x4 m1, Matrix4x4 m2) {
-            Vector4[] ret = new Vector4[4];
+            Vector4[] col = new Vector4[4];
             for (int i = 0; i < 4; i++) {
-                for( int j = 0; j < 4; j++) {
-                    ret[j][i] = Vector4.DotProduct(m1.GetCol(i), m2.GetRow(j));
+                col[i] = new Vector4();
+                for(int j = 0; j < 4; j++) {
+                    col[i][j] = Vector4.DotProduct(m1.GetRow(j), m2.GetCol(i));
                 }
             }
-            Matrix4x4 fuck = new Matrix4x4(ret[0], ret[1], ret[2], ret[3]);
-            return fuck;
+            return new Matrix4x4(col[0], col[1], col[2], col[3]);
         }
         public static Vector4 operator *(Matrix4x4 m1, Vector4 v1) {
             Vector4 final = new Vector4(0, 0, 0, 0);
@@ -1675,10 +1675,10 @@ namespace Graphics3D {
             return m1;
         }
         public static bool operator ==(Matrix4x4 m1, Matrix4x4 m2) {
-            return (m1.GetRow(0) == m2.GetRow(0) && m1.GetRow(1) == m2.GetRow(1) && m1.GetRow(2) == m2.GetRow(2) && m1.GetRow(3) == m2.GetRow(3));
+            return (m1.GetCol(0) == m2.GetCol(0) && m1.GetCol(1) == m2.GetCol(1) && m1.GetCol(2) == m2.GetCol(2) && m1.GetCol(3) == m2.GetCol(3));
         }
         public static bool operator !=(Matrix4x4 m1, Matrix4x4 m2) {
-            return (m1.GetRow(0) != m2.GetRow(0) || m1.GetRow(1) != m2.GetRow(1) || m1.GetRow(2) != m2.GetRow(2) || m1.GetRow(3) != m2.GetRow(3));
+            return (m1.GetRow(0) != m2.GetCol(0) || m1.GetCol(1) != m2.GetCol(1) || m1.GetCol(2) != m2.GetCol(2) || m1.GetCol(3) != m2.GetCol(3));
         }
         #endregion 
     }
