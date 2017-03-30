@@ -1,20 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Linq;
-
-/*
+﻿/*
     Object3D.cs
     Mar/2017
     Kirby Verbowski
 
     Any object which exists in 3D space should be an Object3D.
-    An Object3D in the general sense is something which has a relation to 3D space and can be rendered by a camera.
+    An Object3D is something which has a relation to 3D space and can be rendered by a camera.
 */
 
-
 namespace Graphics3D {
+
+    public enum TransformOperation { Position, Rotation, Scale, All }
+
+    public delegate void TransformUpdateDelegate(TransformOperation op);
 
     /// <summary>
     /// An interface which allows 3D objects to be rendered by the camera.
@@ -32,80 +29,52 @@ namespace Graphics3D {
         bool Selected();
 
         Mesh mesh { get; set; }
+
+        Mesh transformedMesh { get; set; }
     }
 
     /// <summary>
     /// A class which holds information about an Object3D's relation to the world
     /// </summary>
     public class Transform {
+
         #region Member Variables
 
-        protected Vector3 _position = Vector3.zero;
+        public TransformUpdateDelegate upd;
+
+        private Vector3 _position = Vector3.zero;
         public Vector3 position {
             get { return _position; }
             set {
                 _position = value;
-                _transformMatrix.SetCol(3, value.ToVector4());
+                upd(TransformOperation.Position);
             }
         }
 
-        protected Quaternion _rotation = Quaternion.identity;
+        private Quaternion _rotation = Quaternion.identity;
         public Quaternion rotation {
             get { return _rotation; }
             set {
                 _rotation = value;
-                _rotationMatrix = value.getMatrix4x4();
-                _transformMatrix = new Matrix4x4(_rotationMatrix.GetCol(0), _rotationMatrix.GetCol(1), _rotationMatrix.GetCol(2), position.ToVector4());
+                upd(TransformOperation.Rotation);
             }
         }
 
-        protected Vector3 _scale = Vector3.zero;
+        private Vector3 _scale = Vector3.one;
         public Vector3 scale {
             get { return _scale; }
             set {
                 _scale = value;
-                _scaleMatrix = new Matrix4x4(new Vector4(value.x, 0, 0, 0), new Vector4(0, value.y, 0, 0), 
-                                            new Vector4(0, 0, value.z, 0), new Vector4(0, 0, 0, 1));
+                upd(TransformOperation.Scale);
             }
         }
-
-        protected Matrix4x4 _scaleMatrix = Matrix4x4.identity;
-        public Matrix4x4 scaleMatrix {
-            get {
-                return _scaleMatrix;
-            }
-            set {
-                _scaleMatrix = value;
-                _scale = new Vector3(value.GetCol(0).x, value.GetCol(1).y, value.GetCol(2).z);
-            }
-        }
-
-        protected Matrix4x4 _transformMatrix = Matrix4x4.identity;
-        public Matrix4x4 transformMatrix {
-            get { return _transformMatrix; }
-            set {
-                _transformMatrix = value;
-                _position = value.GetCol(3).ToVector3();
-            }
-        }
-
-        protected Matrix4x4 _rotationMatrix = Matrix4x4.identity;
-        public Matrix4x4 rotationMatrix {
-            get { return _rotationMatrix; }
-            set {
-                _rotationMatrix = value;
-                _rotation = new Quaternion(value);
-                _transformMatrix = new Matrix4x4(value.GetCol(0), value.GetCol(1), value.GetCol(2), position.ToVector4());
-            }
-        }
-
 
         /// <summary>
         /// Returns a unit vector which points in this object's local forward direction
         /// </summary>
         public Vector3 forward {
             get {
-                return transformMatrix.GetCol(2).ToVector3();
+                return rotation.RotateVector3(Vector3.unitVectorZ);
             }
             private set { }
         }
@@ -115,7 +84,7 @@ namespace Graphics3D {
         /// </summary>
         public Vector3 up {
             get {
-                return transformMatrix.GetCol(1).ToVector3();
+                return rotation.RotateVector3(Vector3.unitVectorY);
             }
             private set { }
         }
@@ -125,11 +94,10 @@ namespace Graphics3D {
         /// </summary>
         public Vector3 right {
             get {
-                return transformMatrix.GetCol(0).ToVector3();
+                return rotation.RotateVector3(Vector3.unitVectorX);
             }
             private set { }
         }
-
         #endregion
 
         #region Member Methods
@@ -144,17 +112,6 @@ namespace Graphics3D {
                 this.rotation = rotBy * this.rotation;
             }
         }
-        /// <summary>
-        /// Rotate this object by the axis and angle specified
-        /// </summary>
-        public void Rotate(Vector3 axis, double angle) {
-            if (this.rotation.sqrMagnitude < MathConst.EPSILON) {
-                this.rotation = new Quaternion(axis, angle) * Quaternion.identity;
-            } else {
-                this.rotation = new Quaternion(axis, angle) * this.rotation;
-            }
-        }
-
         #endregion
 
         #region Constructors
@@ -163,10 +120,6 @@ namespace Graphics3D {
             this._position = position;
             this._rotation = rotation;
             this._scale = scale;
-            this._rotationMatrix = rotation.getMatrix4x4();
-            this._transformMatrix.SetCol(3, position.ToVector4());
-            this._scaleMatrix = new Matrix4x4(new Vector4(scale.x, 0, 0, 0), new Vector4(0, scale.y, 0, 0),
-                                            new Vector4(0, 0, scale.z, 0), new Vector4(0, 0, 0, 1));
         }
         #endregion
     }
@@ -185,8 +138,9 @@ namespace Graphics3D {
 
         public Mesh mesh { get; set; }
 
-        public bool selected = false;
+        public Mesh transformedMesh { get; set; }
 
+        public bool selected = false;
         #endregion
 
         #region Member Methods
@@ -195,34 +149,75 @@ namespace Graphics3D {
             return false;
         }
 
+        private void TransformUpdate(TransformOperation op) {
+            if (transformedMesh == null) {
+                if(mesh == null || mesh.vertices == null) {
+                    return;
+                }else {
+                    transformedMesh = new Mesh(mesh.vertices, mesh.faces, mesh.edges);
+                }
+            }
+            for(int i = 0; i < mesh.vertices.Length; i++) {
+                transformedMesh.vertices[i] = transform.rotation.RotateVector3(mesh.vertices[i] * transform.scale) + transform.position;
+            }
+            if(op == TransformOperation.Rotation || op == TransformOperation.All) {
+                transformedMesh.calculateFaceNormals();
+            }
+        }
+
         #endregion
 
         #region Constructors
         public Object3D(Vector3 position, Vector3 scale, Quaternion rotation) {
             this.mesh = new Mesh();
             this.transform = new Transform(position, scale, rotation);
+            transform.upd = TransformUpdate;
+            transform.upd.Invoke(TransformOperation.All);
         }
         /// <summary>
         /// Create a new Object3D from an .obj file at the given path
         /// </summary>
         public Object3D(string path) {
             mesh = Mesh.ReadObjFile(path);
+            mesh.calculateFaceNormals();
+            this.transformedMesh = new Mesh(mesh.vertices, mesh.faces, mesh.edges);
+            transformedMesh.calculateFaceNormals();
             transform = new Transform(Vector3.zero, Vector3.one, Quaternion.identity);
+            transform.upd = TransformUpdate;
+            transform.upd.Invoke(TransformOperation.All);
         }
         /// <summary>
         /// Create a new Object3D from an .obj file at the given path
         /// </summary>
         public Object3D(string path, Vector3 position, Vector3 scale, Quaternion rotation) {
             mesh = Mesh.ReadObjFile(path);
+            this.transformedMesh = new Mesh(mesh.vertices, mesh.faces, mesh.edges);
+            transformedMesh.calculateFaceNormals();
+            mesh.calculateFaceNormals();
+
             transform = new Transform(position, scale, rotation);
+            transform.upd = TransformUpdate;
+            transform.upd.Invoke(TransformOperation.All);
         }
         public Object3D(Mesh mesh, Vector3 position, Vector3 scale, Quaternion rotation) {
             this.mesh = mesh;
+            this.transformedMesh = new Mesh(mesh.vertices, mesh.faces, mesh.edges);
+            transformedMesh.calculateFaceNormals();
+            mesh.calculateFaceNormals();
+
             this.transform = new Transform(position, scale, rotation);
+            transform.upd = TransformUpdate;
+            transform.upd.Invoke(TransformOperation.All);
         }
         public Object3D(Mesh mesh) {
             this.mesh = mesh;
+            this.transformedMesh = new Mesh(mesh.vertices, mesh.faces, mesh.edges);
+            transformedMesh.calculateFaceNormals();
+            mesh.calculateFaceNormals();
+
             transform = new Transform(Vector3.zero, Vector3.one, Quaternion.identity);
+            transform.upd = TransformUpdate;
+            transform.upd.Invoke(TransformOperation.All);
         }
         #endregion
     }

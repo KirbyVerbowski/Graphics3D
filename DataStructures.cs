@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 /*
     DataStructures.cs
@@ -42,6 +43,9 @@ namespace Graphics3D {
         }
     }
 
+    /// <summary>
+    /// Some global constants
+    /// </summary>
     public static class GlobalConstants {
         public const string PRIMITIVE_FILE_DIR = @"";
         public const string INITIAL_FILE_DIR = @"";
@@ -489,6 +493,12 @@ namespace Graphics3D {
         public static Vector3 operator *(double mag, Vector3 v1) {
             return new Vector3(v1.x * mag, v1.y * mag, v1.z * mag);
         }
+        /// <summary>
+        /// Component-wise vector multiplication
+        /// </summary>
+        public static Vector3 operator *(Vector3 v1, Vector3 v2) {
+            return new Vector3(v1.x * v2.x, v1.y * v2.y, v1.z * v2.z);
+        }
         public static Vector3 operator -(Vector3 v1) {
             return v1 * (-1);
         }
@@ -752,7 +762,6 @@ namespace Graphics3D {
         }
         #endregion
     }
-
 
     /// <summary>
     /// A general purpose struct for a 4x4 matrix 
@@ -1529,7 +1538,7 @@ namespace Graphics3D {
         }
 
         /// <summary>
-        /// Returns a rotation matrix which will represent a counter-clockwise rotation for all axes
+        /// Use this guy for intrinsic XZY rotations if you are so inclined
         /// </summary>
         /// <param name="Rotation">Components will represent the angle in radians around each axis</param>
         public static Matrix4x4 CombinedRotation(Vector3 angles) {
@@ -1537,7 +1546,7 @@ namespace Graphics3D {
         }
 
         /// <summary>
-        /// Returns a rotation matrix which will represent a counter-clockwise rotation for all axes in the global reference frame
+        /// Returns a rotation matrix which will represent a counter-clockwise rotation for all axes in the global reference frame (extrinsic XYZ). Use this here bad boy for dirty scum euler angle rotations
         /// </summary>
         /// <param name="angles">Components will represent the angle in radians around each axis</param>
         public static Matrix4x4 GlobalReferenceRotation(Vector3 angles) {
@@ -1566,17 +1575,6 @@ namespace Graphics3D {
             return ret;
         }
         
-        /// <summary>
-        /// Returns a rotation matrix which will perform a rotation that will move "from" to "to"
-        /// </summary>
-        /// <param name="from">Starting location</param>
-        /// <param name="to">Final location</param>
-        public static Matrix4x4 FromToRotation(Vector3 from, Vector3 to) {
-            if(Vector3.Angle(from, to) < MathConst.EPSILON) {
-                return identity;
-            }
-            return RotationFromAxisAngle(Vector3.CrossProduct(from, to), Vector3.Angle(from, to));
-        }
         #endregion
 
         #region Operator Overloads
@@ -1645,7 +1643,9 @@ namespace Graphics3D {
         #endregion 
     }
 
-
+    /// <summary>
+    /// A unit quaternion can be used to represent a rotation
+    /// </summary>
     public struct Quaternion {
 
         #region Member Variables
@@ -1683,29 +1683,11 @@ namespace Graphics3D {
             private set { }
         }
 
-        /// <summary>
-        /// The Rotation Matrix which corresponds to this quaternion
-        /// </summary>
-        public Matrix4x4 rotationMatrix {
-            get {
-                return new Matrix4x4(new Vector4(1 - 2 * Math.Pow(y, 2) - 2 * Math.Pow(z, 2),
-                                                    2 * x * y + 2 * w * z,
-                                                        2 * x * z - 2 * w * y, 0),
-                                         new Vector4(2 * x * y + 2 * w * z,
-                                                        1 - 2 * Math.Pow(x, 2) - 2 * Math.Pow(z, 2),
-                                                            2 * y * z - 2 * w * x, 0),
-                                            new Vector4(2 * x * z - 2 * w * y,
-                                                            2 * y * z + 2 * w * x,
-                                                                1 - 2 * Math.Pow(x, 2) - 2 * Math.Pow(y, 2), 0),
-                                                new Vector4(0, 0, 0, 1));
-            }
-            private set { }
-        }
         #endregion
 
         #region Static Variables
         /// <summary>
-        /// The identity quaternion (1,0,0,0)
+        /// The identity quaternion corresponding to no rotation (1,0,0,0)
         /// </summary>
         public static Quaternion identity {
             get { return new Quaternion(1, 0, 0, 0); }
@@ -1733,7 +1715,9 @@ namespace Graphics3D {
             this.y = axis.y * Math.Sin(-angle / 2);
             this.z = axis.z * Math.Sin(-angle / 2);
         }
-
+        /// <summary>
+        /// Discouraged but you can still use it. Be careful, you can't convert back to a rotation matrix after
+        /// </summary>
         public Quaternion(Matrix4x4 m1) {
             double tr = m1.m11 + m1.m22 + m1.m33;
 
@@ -1766,25 +1750,12 @@ namespace Graphics3D {
         #endregion
 
         #region Member Methods
-
+        /// <summary>
+        /// Returns a Vector3 that has been rotated by this quaternion
+        /// </summary>
         public Vector3 RotateVector3(Vector3 original) {
             Quaternion temp = (this * new Quaternion(0, original.x, original.y, original.z) * this.conjugate);
             return new Vector3(temp.x, temp.y, temp.z);
-        }
-
-        /// <summary>
-        /// Get the 4x4 matrix corresponding to this
-        /// </summary>
-        public Matrix4x4 getMatrix4x4() {
-            Normalize();
-            double sw = w * w, sx = x * x, sy = y * y, sz = z * z;
-            double temp1 = x * y, temp2 = x * w, temp3 = x*z, temp4 = y*w, temp5 = y*z, temp6 = x*w;
-            Matrix4x4 m1 = new Matrix4x4(new Vector4(sx - sy - sz + sw, 2*(temp1 + temp2), 2*(temp3-temp4), 0),
-                                            new Vector4(2*(temp1 - temp2), -sx + sy - sz + sw, 2*(temp5+temp6), 0),
-                                                new Vector4(2*(temp4+temp3), 2*(temp5 - temp6), -sx - sy + sz + sw, 0),
-                                                    new Vector4(0, 0, 0, 1));
-
-            return m1;
         }
 
         /// <summary>
@@ -1818,10 +1789,15 @@ namespace Graphics3D {
         #endregion
     }
 
+    /// <summary>
+    /// The mapping of verticies, edges and faces of an object with scale 1 and no rotation
+    /// </summary>
     public class Mesh {
+
         #region Member Variables
         public Vector3[] vertices { get; set; }
         public int[][] faces { get; set; }
+        public Vector3[] faceNormals { get; set; }
         public int[][] edges { get; set; }
         public string name { get; set; }
         #endregion
@@ -1846,6 +1822,23 @@ namespace Graphics3D {
 
         #endregion
 
+        #region Member Methods
+
+        public void calculateFaceNormals() {
+            if(faces == null) {
+                throw new Exception("This mesh has no faces!");
+            }
+            faceNormals = new Vector3[faces.Length];
+            for (int i = 0; i < faces.Length; i++) {
+                if(faces[i].Length < 3) {
+                    throw new Exception("Faces must have at least 3 vertices!");
+                }
+                //Assumes the convention that vertices will construct a face in a counter-clockwise manner
+                faceNormals[i] = Vector3.CrossProduct(vertices[faces[i][1]] - vertices[faces[i][0]], vertices[faces[i][faces[i].Length - 1]] - vertices[faces[i][0]]).normalized;
+            }
+        }
+        #endregion
+
         #region Static Methods
 
         /// <summary>
@@ -1864,12 +1857,19 @@ namespace Graphics3D {
             System.IO.StreamReader stream = new System.IO.StreamReader(path);
 
             while ((line = stream.ReadLine()) != null) {
+                if(line.Length == 0) {
+                    continue;
+                }
                 lineCh = line.ToCharArray();
                 if (lineCh[0] == '#') {
                     continue;
                 }
 
+                Regex reg = new Regex(@"\s+");
+
+                line = reg.Replace(line, " ");
                 words = line.Split(' ');
+                
 
                 switch (words[0]) {
                     case "v":
@@ -1882,15 +1882,23 @@ namespace Graphics3D {
                     case "f":
                         StringBuilder sb = new StringBuilder();
                         int j = 0;
-
+                        faces.Add(new List<int>());
                         for (int i = 1; i < words.Length; i++) {
-                            while (words[i].ElementAt(j) != '/') {
-                                sb.Append(words[i].ElementAt<char>(j));
-                                j++;
+                            if (!words[i].Contains("/")) {
+                                sb.Append(words[i]);
+                            }else {
+                                while (words[i].ElementAt(j) != '/') {
+                                    sb.Append(words[i].ElementAt(j));
+                                    j++;
+                                }
+                                j = 0;
                             }
-                            j = 0;
-                            faces.Add(new List<int>());
+                            
+                            
                             faces[face].Add(int.Parse(sb.ToString()) - 1);
+                            if((int.Parse(sb.ToString()) - 1) < 0) {
+                                throw new Exception("Cannot parse negative-indexed files");
+                            }
                             sb.Clear();
                         }
                         face++;
@@ -1929,16 +1937,19 @@ namespace Graphics3D {
             }
 
             result.edges = edges.ToArray();
-
+            result.calculateFaceNormals();
             return result;
         }
         #endregion
 
         #region Constructors
         public Mesh(Vector3[] vertices, int[][] faces, int[][] edges) {
-            this.vertices = vertices;
-            this.faces = faces;
-            this.edges = edges;
+            this.vertices = new Vector3[vertices.Length];
+            this.faces = new int[faces.Length][];
+            this.edges = new int[edges.Length][];
+            Array.Copy(vertices, this.vertices, vertices.Length);
+            Array.Copy(faces, this.faces, faces.Length);
+            Array.Copy(edges, this.edges, edges.Length);
             this.name = "";
         }
         public Mesh(Vector3[] vertices) {

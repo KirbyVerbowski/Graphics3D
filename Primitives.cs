@@ -11,7 +11,7 @@ using System.Drawing;
     This is done by creating an instance of a camera as well as an instance of the object(or objects)
     these objects (including the camera) can be rotated, scaled and moved by changing the respective properties
     of their transform property.
-    To create an image, add the object instance to the camera's renderQueue and call the render method on the camera.
+    To create an image, add the object instance to the camera's renderQueue list and call the render method on the camera.
     Render will return an image which can then be applied to a pictureBox etc.
 */
 
@@ -63,7 +63,7 @@ namespace Graphics3D {
     /// <summary>
     /// A camera object that can be used to render a scene
     /// </summary>
-    public class Camera : Object3D {
+    public class Camera  : Object3D {
 
         #region Member Variables
 
@@ -99,22 +99,26 @@ namespace Graphics3D {
         /// <summary>
         /// Length of the local axis gizmos (Red, Green and Blue lines)
         /// </summary>
-        public double gizmoLength = 5;
+        public double gizmoLength = 0;
 
         /// <summary>
         /// Should the camera render local axis gizmos?
         /// </summary>
-        public bool renderGizmos = true;
+        public bool renderGizmos = false;
 
+        private bool _orthographic = false;
         /// <summary>
         /// Should the camera render in perspective or orthographic?
         /// </summary>
-        public bool orthographic = false;
+        public bool orthographic {
+            get { return _orthographic; }
+            set { _orthographic = value; RenderSizeChanged(); }
+        }
 
         /// <summary>
-        /// How should objects be rendered? Only wireframe is supported currently.
+        /// How should objects be rendered?
         /// </summary>
-        public RenderMode renderMode = RenderMode.Wireframe;
+        public RenderMode renderMode = RenderMode.Solid;
 
         /// <summary>
         /// Background color of the image
@@ -126,17 +130,9 @@ namespace Graphics3D {
         /// </summary>
         public Pen wireFramePen = Pens.Black;
 
-        /// <summary>
-        /// A Matrix4x4 which represents the inverse of this camera's rotation. It is used mainly by render calls.
-        /// </summary>
-        private Matrix4x4 cameraMatrix = Matrix4x4.identity;
+        private Pen[] gizmoPens = new Pen[] { Pens.Blue, Pens.LawnGreen, Pens.Red };
 
-        /// <summary>
-        /// Points that are used by the render calls.
-        /// </summary>
-        private Vector3 point1 = Vector3.zero, point2 = Vector3.zero, up = Vector3.zero, right = Vector3.zero, forward = Vector3.zero, origin = Vector3.zero;
-
-        private double _farClip = 250, _nearClip = 0.1, _zoom = 1, _viewAngle = Math.PI / 4;
+        private double _farClip = 250, _nearClip = 0.1, _zoom = 1, _viewAngle = Math.PI / 4, _orthographicScale = 0.1;
 
         public double viewAngle {
             get { return _viewAngle; }
@@ -154,6 +150,10 @@ namespace Graphics3D {
             get { return _zoom; }
             set { _zoom = value; RenderSizeChanged(); }
         }
+        public double orthographicScale {
+            get { return _orthographicScale; }
+            set { _orthographicScale = value; RenderSizeChanged(); }
+        }
 
         private Vector2 screen1, screen2;
         private Projection projection;
@@ -166,7 +166,6 @@ namespace Graphics3D {
         public Camera(Vector3 position, Quaternion rotation, Color worldColor, int width, int height, double angle) : base(Mesh.CameraFrustrum, position, Vector3.one, rotation) {
 
             this.worldColor = worldColor;
-            TransformUpdate();
             //So callback is only called once
             this._viewAngle = angle;
             this._width = width;
@@ -181,129 +180,137 @@ namespace Graphics3D {
         /// </summary>
         public Image Render() {
 
-            TransformUpdate();
             g.Clear(worldColor);
 
-            if (orthographic) {
-                switch (renderMode) {
-                    case RenderMode.Wireframe:
-                        return DrawAllObjectsWireframeOrtho();
-                    case RenderMode.Solid:
-                        throw new NotImplementedException();
-                    default:
-                        return null;
-                }
-            } else {
-                switch (renderMode) {
-                    case RenderMode.Wireframe:
-                        return DrawAllObjectsWireframePerspective();
-                    case RenderMode.Solid:
-                        throw new NotImplementedException();
-                    default:
-                        return null;
-                }
+            switch (renderMode) {
+                case RenderMode.Solid:
+                    return DrawAllObjectsSolid();
+                case RenderMode.Wireframe:
+                    return DrawAllObjectsWireframe();
+                default:
+                    return null;
             }
 
         }
 
-        /// <summary>
-        /// This should only be called by Render(). It truncates the z axis of all points in a scene to create an image to return to Render();
-        /// </summary>
-        private Image DrawAllObjectsWireframeOrtho() {
-            if (renderQueue.Count > 0) {
-                foreach (IRenderable obj in renderQueue) {
-                    Matrix4x4 objMatrix = obj.transform.transformMatrix * obj.transform.scaleMatrix;
-                    foreach (int[] edge in obj.mesh.edges) {
+        private Image DrawAllObjectsWireframe() {
 
-                        point1 = (objMatrix * obj.mesh.vertices[edge[0]].ToVector4()).ToVector3();
-                        point2 = (objMatrix * obj.mesh.vertices[edge[1]].ToVector4()).ToVector3();
-
-                        point1 = new Vector3(Vector3.DotProduct(point1, transform.right), Vector3.DotProduct(obj.mesh.vertices[edge[0]], transform.up));
-                        point2 = new Vector3(Vector3.DotProduct(point1, transform.right), Vector3.DotProduct(obj.mesh.vertices[edge[1]], transform.up));
-
-                        if (Math.Abs(point1.x) > width || Math.Abs(point1.y) > height || Math.Abs(point2.x) > width || Math.Abs(point2.y) > height) {
-                            continue;
-                        }
-                        g.DrawLine(wireFramePen, (float)point1.x, (float)point1.y, (float)point2.x, (float)point2.y);
-                    }
-
-                    if (renderGizmos) {
-                        origin = (cameraMatrix * (obj.transform.position - transform.position).ToVector4()).ToVector3();
-                        up = (cameraMatrix * ((obj.transform.up * gizmoLength + obj.transform.position) - transform.position).ToVector4()).ToVector3();
-                        right = (cameraMatrix * ((obj.transform.right * gizmoLength + obj.transform.position) - transform.position).ToVector4()).ToVector3();
-                        forward = (cameraMatrix * ((obj.transform.forward * gizmoLength + obj.transform.position) - transform.position).ToVector4()).ToVector3();
-
-                        if (Math.Abs(origin.x) > width || Math.Abs(origin.y) > height || Math.Abs(up.x) > width || Math.Abs(up.y) > height || Math.Abs(right.x) > width || Math.Abs(right.y) > height || Math.Abs(forward.x) > width || Math.Abs(forward.y) > height) {
-                            continue;
-                        }
-
-                        g.DrawLine(Pens.LawnGreen, (float)(origin.x - transform.position.x), (float)(origin.y - transform.position.y), (float)(up.x - transform.position.x), (float)(up.y - transform.position.y));
-                        g.DrawLine(Pens.Blue, (float)(origin.x - transform.position.x), (float)(origin.y - transform.position.y), (float)(forward.x - transform.position.x), (float)(forward.y - transform.position.y));
-                        g.DrawLine(Pens.Red, (float)(origin.x - transform.position.x), (float)(origin.y - transform.position.y), (float)(right.x - transform.position.x), (float)(right.y - transform.position.y));
-                    }
-                }
-            }
-            return b;
-        }
-
-        /// <summary>
-        /// This should only be called by Render(). It uses a projection algorithm to create an image to return to Render();
-        /// </summary>
-        /// <remarks>If one vertex of an edge is inside or behind the camera, the whole edge will not be rendered. I'm working on this.</remarks>
-        private Image DrawAllObjectsWireframePerspective() {
             if(renderQueue.Count == 0) {
                 return b;
             }
 
             foreach (IRenderable obj in renderQueue) {
 
+             
                 if (obj.Selected()) {
                     wireFramePen = Pens.Orange;
                 }else {
                     wireFramePen = Pens.Black;
                 }
 
-                Matrix4x4 objMatrix = obj.transform.transformMatrix * obj.transform.scaleMatrix;
-                    foreach (int[] edge in obj.mesh.edges) {
+                foreach (int[] edge in obj.mesh.edges) {
 
-                    point1 = (objMatrix * (obj.mesh.vertices[edge[0]]).ToVector4()).ToVector3();
-                    point2 = (objMatrix * (obj.mesh.vertices[edge[1]]).ToVector4()).ToVector3();
-
-                    point1 = (cameraMatrix * (point1 - transform.position).ToVector4()).ToVector3();
-                    point2 = (cameraMatrix * (point2 - transform.position).ToVector4()).ToVector3();
-
-                    projection.Project(point1, point2, out screen1, out screen2);
-
+                    projection.Project(VertexToCameraSpace(obj.transformedMesh.vertices[edge[0]]),
+                                        VertexToCameraSpace(obj.transformedMesh.vertices[edge[1]]),
+                                          out screen1,
+                                           out screen2);
                     g.DrawLine(wireFramePen, (float)screen1.x, (float)screen1.y, (float)screen2.x, (float)screen2.y);
+                }
 
-                    //g.DrawLine(wireFramePen, (float)point1.x * width / (float)dispRect.x, (float)point1.y * height / (float)dispRect.y, (float)point2.x * width / (float)dispRect.x, (float)point2.y * height / (float)dispRect.y);
+                if (renderGizmos) {
+
+                    Vector3[] points = new Vector3[] { obj.transform.forward * gizmoLength + obj.transform.position, obj.transform.up * gizmoLength + obj.transform.position, obj.transform.right * gizmoLength + obj.transform.position };
+                    for (int i = 0; i < 3; i++) {
+
+                        projection.Project(VertexToCameraSpace(obj.transform.position),
+                                        VertexToCameraSpace(points[i]),
+                                          out screen1,
+                                           out screen2);
+                        g.DrawLine(gizmoPens[i], (float)screen1.x, (float)screen1.y, (float)screen2.x, (float)screen2.y);
+                    }
+                }
+            }
+            return b;
+        }
+
+        /// <summary>
+        /// Draws all objects in the renderqueue as solid white/grey objects. Note this doesn't consider z-depth
+        /// </summary>
+        private Image DrawAllObjectsSolid() {
+
+            foreach (IRenderable obj in renderQueue) {
+
+                for (int i = 0; i < obj.transformedMesh.faces.Length; i++) {
+
+                    double dot = Vector3.DotProduct((obj.transform.position - transform.position).normalized, obj.transformedMesh.faceNormals[i]);
+                    if(dot >= 0) {
+                        continue;   //backface culling
+                    }
+                    if (Math.Abs(dot) < MathConst.EPSILON || double.IsNaN(dot) || double.IsInfinity(dot)) {
+                        continue;
+                    }
+                    
+                    Brush b = new SolidBrush(Color.FromArgb((int)(-dot * 255), (int)(-dot * 255), (int)(-dot * 255)));
+                    PointF[] verts = new PointF[obj.transformedMesh.faces[i].Length];
+
+
+                    
+
+                    for (int j = 0; j < verts.Length; j++) {
+                        projection.Project(VertexToCameraSpace(obj.transformedMesh.vertices[obj.transformedMesh.faces[i][j]]),
+                                        VertexToCameraSpace(obj.transformedMesh.vertices[obj.transformedMesh.faces[i][j]]),
+                                          out screen1,
+                                           out screen2);
+                        verts[j] = new PointF((float)screen1.x, (float)screen1.y);
+                    }
+                    g.FillPolygon(b, verts);
 
                 }
 
-          }
+                if (renderGizmos) {
+
+                    Vector3[] points = new Vector3[] { obj.transform.forward * gizmoLength + obj.transform.position, obj.transform.up * gizmoLength + obj.transform.position, obj.transform.right * gizmoLength + obj.transform.position };
+                    for (int i = 0; i < 3; i++) {
+
+                        projection.Project(VertexToCameraSpace(obj.transform.position),
+                                        VertexToCameraSpace(points[i]),
+                                          out screen1,
+                                           out screen2);
+                        g.DrawLine(gizmoPens[i], (float)screen1.x, (float)screen1.y, (float)screen2.x, (float)screen2.y);
+                    }
+                }
+            }
+
+
             return b;
+        }
+
+        /// <summary>
+        /// Helper method for render
+        /// </summary>
+        private Vector3 VertexToCameraSpace(Vector3 vertex) {
+            return transform.rotation.conjugate.RotateVector3(vertex - transform.position);   //Convert to camera space
+             
         }
 
         /// <summary>
         /// Updates private variables when the render size is changed.
         /// </summary>
         private void RenderSizeChanged() {
-            b = new Bitmap(width, height);
-            g = Graphics.FromImage(b);
-            g.ScaleTransform(1, -1);
-            g.TranslateTransform(width / 2, -height / 2);
+            if(width > MathConst.EPSILON && height > MathConst.EPSILON) {
+                b = new Bitmap(width, height);
+                g = Graphics.FromImage(b);
+                g.ScaleTransform(1, -1);
+                g.TranslateTransform(width / 2, -height / 2);
 
-            projection = new Projection(this);
+                projection = new Projection(this);
 
-            transform.scale = new Vector3(projection.rect.x, projection.rect.y, 4*viewAngle/Math.PI);
+                transform.scale = new Vector3(projection.rect.x, projection.rect.y, 4 * viewAngle / Math.PI);
+            }                 
         }
 
         public override bool Selected() {
             return base.selected;
-        }
-
-        protected virtual void TransformUpdate() {
-            cameraMatrix = Matrix4x4.Transpose(transform.rotationMatrix);
         }
         #endregion
     }

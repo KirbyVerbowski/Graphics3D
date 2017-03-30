@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 /*
     Projection.cs
@@ -12,6 +11,9 @@ using System.Collections.Generic;
 
 namespace Graphics3D {
 
+    /// <summary>
+    /// This class can be instantiated to project points from a camera to a plane
+    /// </summary>
     class Projection {
 
         #region Member Variables
@@ -26,6 +28,7 @@ namespace Graphics3D {
         private double tanThetaU, tanThetaV;
         private Vector2 proj1, proj2;
         private double viewAngle;
+        private double orthographicScale;
 
         public Vector2 rect;
         #endregion
@@ -37,7 +40,8 @@ namespace Graphics3D {
             nearClip = c.nearClip;
             origin = c.transform.position;
             zoom = c.zoom;
-            projection = 0;
+            orthographicScale = c.orthographicScale;
+            projection = c.orthographic? 1: 0;
             width = c.width;
             height = c.height;
 
@@ -162,8 +166,8 @@ namespace Graphics3D {
 
             }else {
 
-                normalized.x = zoom * e.x / tanThetaU;
-                normalized.y = zoom * e.y / tanThetaV;
+                normalized.x = orthographicScale * e.x / tanThetaU;
+                normalized.y = orthographicScale * e.y / tanThetaV;
                 normalized.z = e.z;
 
             }
@@ -281,15 +285,15 @@ namespace Graphics3D {
         /// </summary>
         /// <param name="point1">First point to be projected</param>
         /// <param name="point2">Second point to be projected</param>
-        /// <param name="screen1">The first point in screen coordinates</param>
-        /// <param name="screen2">The second point in screen coordinates</param>
+        /// <param name="screen1">The first point in screen coordinates range(-1,1)</param>
+        /// <param name="screen2">The second point in screen coordinates range(-1,1)</param>
         public void Project(Vector3 point1, Vector3 point2, out Vector2 screen1, out Vector2 screen2) {
             Vector3 p1 = point1, p2 = point2;
 
             if(ClipEyeCoords(ref p1, ref p2)) {
                 NormalizeEyeCoords(p1, out p1);
                 NormalizeEyeCoords(p2, out p2);
-                //Console.WriteLine(p2);
+
                 if (NormalizeClipCoords(ref p1, ref p2)) {
                     
                     NormalizedToScreenCoords(p1, out proj1);
