@@ -1,4 +1,4 @@
-# 3d-rendering
+# Graphics3D
 A small C# library for manipulating objects in 3d space and rendering them.
 you can use it by adding a reference to the .dll in your project and inserting the following line in your code:
 ```c#
